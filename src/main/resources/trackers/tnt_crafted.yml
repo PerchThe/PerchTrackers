@@ -1,0 +1,19 @@
+name: "&#FEC300Tracker &8| &fTNT Crafted"
+item: "COMPASS"
+type: "CRAFT_ITEM"
+lore-format: "&fTNT Crafted &8| &6{count_commas}"
+description:
+  - "&fOne-time use tracker."
+  - "&f"
+  - "&eApplies to:"
+  - "&fArmor"
+  - ""
+  - "&eDrag and drop&f onto item to apply."
+allowed-items:
+  - "*_HELMET"
+  - "*_CHESTPLATE"
+  - "*_LEGGINGS"
+  - "*_BOOTS"
+  - "*_ELYTRA"
+allowed-targets:
+  - "TNT"

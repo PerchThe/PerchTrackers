@@ -20,9 +20,12 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.*;
+import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.*;
+import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -143,6 +146,49 @@ public class TrackerListener implements Listener {
         }
     }
 
+    private static final Map<Material, Integer> MAX_HEIGHTS = Map.of(
+            Material.SUGAR_CANE, 3,
+            Material.CACTUS, 3,
+            Material.BAMBOO, 16,
+            Material.KELP, 26,
+            Material.KELP_PLANT, 26
+    );
+
+    private int countBrokenFrom(Block start) {
+        Material type = start.getType();
+
+        // fallback
+        int maxHeight = MAX_HEIGHTS.getOrDefault(type, Integer.MAX_VALUE);
+
+        // only top block
+        if (start.getRelative(0, 1, 0).getType() != type) {
+            return 1;
+        }
+
+        int count = 1;
+        Block up = start.getRelative(0, 1, 0);
+
+        while (up.getType() == type && count < maxHeight) {
+            count++;
+            up = up.getRelative(0, 1, 0);
+        }
+
+        return count;
+    }
+
+    private int getMaxCrafts(CraftingInventory inv, Recipe recipe) {
+        ItemStack[] matrix = inv.getMatrix();
+
+        int max = Integer.MAX_VALUE;
+
+        for (ItemStack item : matrix) {
+            if (item == null || item.getType().isAir()) continue;
+            max = Math.min(max, item.getAmount());
+        }
+
+        return max == Integer.MAX_VALUE ? 1 : max;
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent e) {
         if (e.getCursor() == null || e.getCurrentItem() == null) return;
@@ -155,31 +201,85 @@ public class TrackerListener implements Listener {
         Player player = (Player) e.getWhoClicked();
 
         if (!cursor.hasItemMeta()) return;
-        if (!cursor.getItemMeta().getPersistentDataContainer().has(plugin.getTrackerManager().TRACKER_ID_KEY, PersistentDataType.STRING)) return;
+
+        if (plugin.getTrackerManager().isTrackerRemover(cursor)) {
+            e.setCancelled(true);
+
+            boolean removedAny = removeAllTrackersFromItem(current, player);
+
+            if (!removedAny) {
+                player.sendMessage(plugin.getConfigManager().getPrefix() +
+                        plugin.getConfigManager().getMessage("no_trackers_to_remove"));
+                return;
+            }
+
+            cursor.setAmount(cursor.getAmount() - 1);
+            player.sendMessage(plugin.getConfigManager().getPrefix() +
+                    plugin.getConfigManager().getMessage("tracker_remover_used"));
+            playApplicationEffects(player);
+            return;
+        }
+
+        if (!cursor.getItemMeta().getPersistentDataContainer().has(plugin.getTrackerManager().TRACKER_ID_KEY, PersistentDataType.STRING)) {
+            return;
+        }
 
         String trackerId = cursor.getItemMeta().getPersistentDataContainer().get(plugin.getTrackerManager().TRACKER_ID_KEY, PersistentDataType.STRING);
         YamlConfiguration config = plugin.getTrackerManager().getTrackerConfig(trackerId);
 
+        if (config == null) {
+            player.sendMessage(plugin.getConfigManager().getMessage("invalid_tracker"));
+            return;
+        }
+
         if (!isAllowed(current.getType().name(), config.getStringList("allowed-items"))) {
-            player.sendMessage(plugin.getConfigManager().getMessage("invalid_item_type"));
+            player.sendMessage(plugin.getConfigManager().getPrefix() +
+                    plugin.getConfigManager().getMessage("invalid_item_type"));
             return;
         }
 
         if (ItemUtil.hasTracker(current, trackerId)) {
-            player.sendMessage(plugin.getConfigManager().getMessage("tracker_already_applied"));
+            player.sendMessage(plugin.getConfigManager().getPrefix() +
+                    plugin.getConfigManager().getMessage("tracker_already_applied"));
             return;
         }
 
         ItemMeta toolMeta = current.getItemMeta();
         toolMeta.getPersistentDataContainer().set(new org.bukkit.NamespacedKey(plugin, "tracker_stat_" + trackerId), PersistentDataType.INTEGER, 0);
         current.setItemMeta(toolMeta);
+
         ItemUtil.updateItemLore(current, trackerId, config.getString("lore-format"));
 
         e.setCancelled(true);
         cursor.setAmount(cursor.getAmount() - 1);
-        player.sendMessage(plugin.getConfigManager().getMessage("tracker_applied"));
+        player.sendMessage(plugin.getConfigManager().getPrefix() +
+                plugin.getConfigManager().getMessage("tracker_applied"));
 
         playApplicationEffects(player);
+    }
+
+    private boolean removeAllTrackersFromItem(ItemStack item, Player player) {
+        boolean removed = false;
+
+        for (String id : new HashSet<>(plugin.getTrackerManager().getTrackerIds())) {
+            if (!ItemUtil.hasTracker(item, id)) continue;
+
+            YamlConfiguration config = plugin.getTrackerManager().getTrackerConfig(id);
+            if (config == null) continue;
+
+            ItemStack returnedTracker = plugin.getTrackerManager().getTrackerItem(id);
+            if (returnedTracker != null) {
+                HashMap<Integer, ItemStack> leftovers = player.getInventory().addItem(returnedTracker);
+                leftovers.values().forEach(leftover ->
+                        player.getWorld().dropItemNaturally(player.getLocation(), leftover)
+                );
+            }
+
+            ItemUtil.removeTracker(item, id, config.getString("lore-format"));
+            removed = true;
+        }
+
+        return removed;
     }
 
     private void playApplicationEffects(Player player) {
@@ -252,7 +352,17 @@ public class TrackerListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent e) {
         if (e.getPlayer().getGameMode() == GameMode.CREATIVE) return;
-        checkTrackers(e.getPlayer(), "BLOCK_BREAK", e.getBlock().getType().name(), 1, e.getBlock());
+
+        Block block = e.getBlock();
+        Material type = block.getType();
+
+        int amount = 1;
+
+        if (MAX_HEIGHTS.containsKey(type)) {
+            amount = countBrokenFrom(block);
+        }
+
+        checkTrackers(e.getPlayer(), "BLOCK_BREAK", type.name(), amount, block);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -362,5 +472,28 @@ public class TrackerListener implements Listener {
         Player player = (Player) e.getEntity();
         int damage = (int) Math.round(e.getFinalDamage());
         checkTrackers(player, "FALL_DAMAGE", null, damage, null);
+    }
+
+    @EventHandler
+    public void onCraft(CraftItemEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        ItemStack result = event.getRecipe().getResult();
+
+        String targetName = result.getType().name();
+
+        int perCraftAmount = result.getAmount();
+
+        CraftingInventory inv = event.getInventory();
+
+        int crafts = 1;
+
+        if (event.isShiftClick()) {
+            crafts = getMaxCrafts(inv, event.getRecipe());
+        }
+
+        int totalAmount = perCraftAmount * crafts;
+
+        checkTrackers(player, "CRAFT_ITEM", targetName, totalAmount, null);
     }
 }

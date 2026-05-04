@@ -1,0 +1,7 @@
+name: "&#FEC300Tracker Remover"
+item: "RECOVERY_COMPASS"
+description:
+  - "&fOne-time use tracker remover."
+  - "&f"
+  - "&eDrag and drop&f onto a tracked item."
+  - "&fRemoves all trackers and returns them."

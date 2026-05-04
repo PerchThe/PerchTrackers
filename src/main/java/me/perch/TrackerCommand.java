@@ -32,14 +32,22 @@ public class TrackerCommand implements CommandExecutor, TabCompleter {
 
         if (args[0].equalsIgnoreCase("give")) {
             if (args.length < 3) {
-                sender.sendMessage(ColorUtil.colorize("&cUsage: /trackers give <player> <filename_id>"));
+                sender.sendMessage(ColorUtil.colorize("&cUsage: /trackers give <player> <filename_id|remover>"));
                 return true;
             }
+
             Player target = Bukkit.getPlayer(args[1]);
             String id = args[2];
 
             if (target == null) {
                 sender.sendMessage(ColorUtil.colorize("&cPlayer not found."));
+                return true;
+            }
+
+            if (id.equalsIgnoreCase("remover") || id.equalsIgnoreCase("tracker_remover")) {
+                target.getInventory().addItem(plugin.getTrackerManager().getTrackerRemoverItem());
+                sender.sendMessage(prefix + plugin.getConfigManager().getMessage("tracker_remover_given")
+                        .replace("%player%", target.getName()));
                 return true;
             }
 
@@ -87,6 +95,14 @@ public class TrackerCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("reload")) {
+            plugin.reloadConfig();
+            plugin.getTrackerManager().loadTrackers();
+            plugin.getTrackerManager().loadTrackerRemover();
+            sender.sendMessage(prefix + plugin.getConfigManager().getMessage("reload"));
+            return true;
+        }
+
         return false;
     }
 
@@ -97,7 +113,7 @@ public class TrackerCommand implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            List<String> subcommands = Arrays.asList("give", "remove");
+            List<String> subcommands = Arrays.asList("give", "remove", "reload");
             StringUtil.copyPartialMatches(args[0], subcommands, completions);
             Collections.sort(completions);
             return completions;
@@ -108,7 +124,9 @@ public class TrackerCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
-            Set<String> ids = plugin.getTrackerManager().getTrackerIds();
+            Set<String> ids = new HashSet<>(plugin.getTrackerManager().getTrackerIds());
+            ids.add("remover");
+
             StringUtil.copyPartialMatches(args[2], ids, completions);
             Collections.sort(completions);
             return completions;
