@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'me.perch'
-version = '1.0.0'
+version = '1.1.0'
 
 repositories {
     mavenCentral()
@@ -16,9 +16,9 @@ repositories {
 dependencies {
     compileOnly "io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT"
 
-    compileOnly "com.github.NuVotifier:NuVotifier:2.7.2"
+    compileOnly files('libs/nuvotifier.jar')
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
 }
