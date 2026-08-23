@@ -13,6 +13,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Trident;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -337,7 +338,27 @@ public class TrackerListener implements Listener {
         double eyeY = victim.getEyeLocation().getY();
 
         if (projectileY > (eyeY - 0.25) && projectileY < (eyeY + 0.5)) {
-            checkTrackers(shooter, "HEADSHOT", victim.getType().name(), 1, null);
+            if (projectile instanceof Trident trident) {
+                List<String> trackerIds = eventTrackerCache.get("HEADSHOT");
+
+                if (trackerIds != null && !trackerIds.isEmpty()) {
+                    ItemStack tridentItem = trident.getItem();
+
+                    checkSingleItem(
+                            tridentItem,
+                            trackerIds,
+                            victim.getType().name(),
+                            1,
+                            null
+                    );
+
+                    // Ensures the modified tracker is retained when picked up
+                    // or returned through Loyalty.
+                    trident.setItem(tridentItem);
+                }
+            } else {
+                checkTrackers(shooter, "HEADSHOT", victim.getType().name(), 1, null);
+            }
         }
     }
 
