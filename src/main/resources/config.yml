@@ -1,5 +1,5 @@
 messages:
-  prefix: "&6Trackers &8»&7 "
+  prefix: "&#48ab76Trackers &8»&7 "
   reload: "Configuration reloaded."
   tracker_given: "Given tracker &b%id% &7to &f%player%&7."
   tracker_removed: "Tracker removed from item and returned to inventory."

@@ -1,4 +1,4 @@
-name: "&#FEC300Tracker &8| &fDamage Dealt"
+name: "&#48ab76Tracker &8| &fDamage Dealt"
 item: "COMPASS"
 type: "DAMAGE_DEALT"
 lore-format: "&fDamage Dealt &8| &6{count_commas}"

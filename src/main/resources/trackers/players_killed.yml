@@ -1,4 +1,4 @@
-name: "&#FEC300Tracker &8| &fPlayers Killed"
+name: "&#48ab76Tracker &8| &fPlayers Killed"
 item: "COMPASS"
 type: "PLAYER_KILL"
 lore-format: "&fPlayers Killed &8| &6{count_commas}"
