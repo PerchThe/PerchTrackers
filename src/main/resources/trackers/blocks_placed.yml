@@ -1,4 +1,4 @@
-name: "&#FEC300Tracker &8| &fBlocks Placed"
+name: "&#48ab76Tracker &8| &fBlocks Placed"
 item: "COMPASS"
 type: "BLOCK_PLACE"
 lore-format: "&fBlocks Placed &8| &6{count_commas}"

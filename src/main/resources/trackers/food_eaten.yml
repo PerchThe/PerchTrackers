@@ -1,4 +1,4 @@
-name: "&#FEC300Tracker &8| &fFood Eaten"
+name: "&#48ab76Tracker &8| &fFood Eaten"
 item: "COMPASS"
 type: "ITEM_CONSUME"
 lore-format: "&fFood Eaten &8| &6{count_commas}"
